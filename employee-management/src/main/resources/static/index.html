@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Employee Management</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#1e293b}
+input,button{padding:.5rem;border:1px solid #cbd5e1;border-radius:6px}
+button{background:#0f766e;color:#fff;border:0;cursor:pointer}
+form{display:grid;grid-template-columns:repeat(5,1fr) auto;gap:.4rem;margin:1rem 0}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:.5rem;border-bottom:1px solid #e2e8f0}
+#stats span{background:#ccfbf1;border-radius:99px;padding:.2rem .7rem;margin-right:.4rem}
+#err{color:#dc2626}
+</style></head><body>
+<h1>Employee Management</h1>
+<div id="stats"></div>
+<form id="f"><input id="name" placeholder="Name" required><input id="email" placeholder="Email" required>
+<input id="department" placeholder="Department" required><input id="role" placeholder="Role">
+<input id="salary" type="number" placeholder="Salary"><button>Add</button></form>
+<div id="err"></div>
+<input id="q" placeholder="Search name or department">
+<table><thead><tr><th>Name</th><th>Email</th><th>Dept</th><th>Role</th><th>Salary</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+<button id="prev">Prev</button> <button id="next">Next</button>
+<script>
+const api='/api/employees',$=id=>document.getElementById(id);let page=0,last=true;
+async function load(){
+  const r=await (await fetch(`${api}?q=${encodeURIComponent($('q').value)}&page=${page}&size=8`)).json();
+  last=r.last;$('rows').innerHTML='';
+  r.content.forEach(e=>{const tr=document.createElement('tr');
+    [e.name,e.email,e.department,e.role||'',e.salary??''].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.append(td)});
+    const td=document.createElement('td');const b=document.createElement('button');b.textContent='Delete';
+    b.onclick=async()=>{await fetch(api+'/'+e.id,{method:'DELETE'});load();stats();};td.append(b);tr.append(td);$('rows').append(tr);});
+}
+async function stats(){const s=await (await fetch(api+'/stats')).json();
+  $('stats').innerHTML='';s.forEach(x=>{const sp=document.createElement('span');sp.textContent=x.department+': '+x.count;$('stats').append(sp)});}
+$('f').onsubmit=async ev=>{ev.preventDefault();
+  const body={name:$('name').value,email:$('email').value,department:$('department').value,role:$('role').value,salary:$('salary').value||null};
+  const r=await fetch(api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  $('err').textContent=r.ok?'':(r.status===409?'Email already exists':'Please check the fields');
+  if(r.ok){ev.target.reset();page=0;load();stats();}};
+$('q').oninput=()=>{page=0;load()};
+$('prev').onclick=()=>{if(page>0){page--;load()}};$('next').onclick=()=>{if(!last){page++;load()}};
+load();stats();
+</script></body></html>

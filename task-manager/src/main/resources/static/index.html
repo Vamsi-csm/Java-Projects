@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Task Manager</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;color:#1e293b}
+form{display:grid;gap:.5rem;grid-template-columns:2fr 1fr 1fr auto;margin-bottom:1rem}
+input,select,button{padding:.5rem;border:1px solid #cbd5e1;border-radius:6px}
+button{background:#2563eb;color:#fff;border:0;cursor:pointer}
+.task{display:flex;justify-content:space-between;align-items:center;border:1px solid #e2e8f0;border-radius:8px;padding:.6rem .8rem;margin:.4rem 0}
+.HIGH{border-left:4px solid #dc2626}.MEDIUM{border-left:4px solid #f59e0b}.LOW{border-left:4px solid #16a34a}
+.DONE .t{text-decoration:line-through;color:#94a3b8}
+</style></head><body>
+<h1>Task Manager</h1>
+<form id="f"><input id="title" placeholder="New task" required>
+<select id="priority"><option>LOW</option><option selected>MEDIUM</option><option>HIGH</option></select>
+<input id="due" type="date"><button>Add</button></form>
+<select id="filter"><option value="">All</option><option>TODO</option><option>IN_PROGRESS</option><option>DONE</option></select>
+<div id="list"></div>
+<script>
+const api='/api/tasks',$=id=>document.getElementById(id);
+const next={TODO:'IN_PROGRESS',IN_PROGRESS:'DONE',DONE:'TODO'};
+async function load(){
+  const s=$('filter').value;
+  const tasks=await (await fetch(api+(s?'?status='+s:''))).json();
+  $('list').innerHTML='';
+  tasks.forEach(t=>{
+    const d=document.createElement('div');d.className='task '+t.priority+' '+t.status;
+    const l=document.createElement('span');l.className='t';
+    l.textContent=t.title+(t.dueDate?' (due '+t.dueDate+')':'')+' ['+t.status+']';
+    const b=document.createElement('span');
+    const adv=document.createElement('button');adv.textContent='→ '+next[t.status];
+    adv.onclick=async()=>{t.status=next[t.status];await put(t);};
+    const del=document.createElement('button');del.textContent='Delete';del.style.marginLeft='.4rem';
+    del.onclick=async()=>{await fetch(api+'/'+t.id,{method:'DELETE'});load();};
+    b.append(adv,del);d.append(l,b);$('list').append(d);
+  });
+}
+async function put(t){await fetch(api+'/'+t.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(t)});load();}
+$('f').onsubmit=async e=>{e.preventDefault();
+  await fetch(api,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:$('title').value,priority:$('priority').value,dueDate:$('due').value||null})});
+  $('title').value='';load();};
+$('filter').onchange=load;load();
+</script></body></html>

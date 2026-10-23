@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Online Bookstore</title>
+<style>
+body{font-family:system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#1e293b}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:1.5rem}
+.card{border:1px solid #e2e8f0;border-radius:8px;padding:.7rem;margin:.5rem 0;display:flex;justify-content:space-between;align-items:center}
+input,button{padding:.5rem;border:1px solid #cbd5e1;border-radius:6px}
+button{background:#7c3aed;color:#fff;border:0;cursor:pointer}
+#msg{margin-top:.5rem;font-weight:600}
+</style></head><body>
+<h1>Online Bookstore</h1>
+<div class="grid"><div><input id="q" placeholder="Search title or author" style="width:100%"><div id="books"></div></div>
+<div><h3>Cart</h3><div id="cart">Empty</div><p>Total: <b id="total">0.00</b></p>
+<input id="cust" placeholder="Your name"><button id="buy">Place order</button><div id="msg"></div></div></div>
+<script>
+const $=id=>document.getElementById(id);let cart={},cat={};
+async function load(){const bs=await (await fetch('/api/books?q='+encodeURIComponent($('q').value))).json();
+  $('books').innerHTML='';bs.forEach(b=>{cat[b.id]=b;const d=document.createElement('div');d.className='card';
+    const s=document.createElement('span');s.textContent=`${b.title} — ${b.author} ($${b.price}, ${b.stock} in stock)`;
+    const btn=document.createElement('button');btn.textContent='Add';btn.disabled=b.stock<1;
+    btn.onclick=()=>{cart[b.id]=(cart[b.id]||0)+1;render()};d.append(s,btn);$('books').append(d)});}
+function render(){const ids=Object.keys(cart);$('cart').textContent=ids.length?ids.map(i=>cat[i].title+' x'+cart[i]).join(', '):'Empty';
+  $('total').textContent=ids.reduce((s,i)=>s+cat[i].price*cart[i],0).toFixed(2);}
+$('buy').onclick=async()=>{const items=Object.keys(cart).map(i=>({bookId:+i,quantity:cart[i]}));
+  const r=await fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customerName:$('cust').value||'Guest',items})});
+  if(r.ok){const o=await r.json();$('msg').textContent='Order #'+o.id+' placed!';cart={};render();load();}
+  else{const e=await r.json();$('msg').textContent=e.message||e.error||'Could not place order';}};
+$('q').oninput=load;load();
+</script></body></html>
